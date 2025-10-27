@@ -1,10 +1,9 @@
 import pandas as pd
 import streamlit as st
 import io
-from office365.runtime.auth.user_credential import UserCredential
-from office365.sharepoint.client_context import ClientContext
 
 # --- CONFIGURAÇÃO DAS FASES ---
+# Lista de fases para a interface
 FASES_LIST = [
     'INSCRIÇÃO: REALIZADA', 
     '1 FASE: DOCUMENTAÇÃO', 
@@ -15,45 +14,31 @@ FASES_LIST = [
 
 # --- FUNÇÕES DE BACK-END ---
 
-@st.cache_data(ttl=600) # Cache de 10 minutos
-def carregar_dados_sharepoint():
-    """Baixa o arquivo do SharePoint e carrega no pandas."""
+@st.cache_data(ttl=300) # Cache de 5 minutos
+def carregar_dados_google():
+    """Baixa o arquivo Excel do Google Drive e carrega no pandas."""
     try:
-        # 1. Lê as credenciais seguras do Streamlit Secrets
-        base_url = st.secrets["SHAREPOINT_URL"]
-        site_url = base_url + st.secrets["SHAREPOINT_SITE"]
-        file_url = st.secrets["SHAREPOINT_FILE_PATH"]
-        user = st.secrets["SHAREPOINT_USER"]
-        password = st.secrets["SHAREPOINT_PASS"]
-
-        # 2. Autentica no SharePoint
-        ctx = ClientContext(site_url).with_credentials(UserCredential(user, password))
+        # ID do arquivo extraído do link que você me enviou
+        # (https://docs.google.com/spreadsheets/d/1M1_ZnFiNqBmNGsFBlGjDiJire6kzBsQz/...)
+        FILE_ID = "1M1_ZnFiNqBmNGsFBlGjDiJire6kzBsQz"
         
-        # --- INÍCIO DA CORREÇÃO DO BUG ---
+        # Constrói a URL de download direto
+        download_url = f"https://drive.google.com/uc?export=download&id={FILE_ID}"
         
-        # 3. Cria um "arquivo em memória" (buffer) para receber os dados
-        buffer = io.BytesIO() 
-        
-        # 4. Baixa o arquivo do SharePoint e salva DENTRO do buffer
-        ctx.web.get_file_by_server_relative_url(file_url).download(buffer).execute_query()
-        
-        # 5. "Rebobina" o buffer para o início para que o pandas possa lê-lo
-        buffer.seek(0)
-        
-        # 6. Carrega os bytes do buffer no pandas e retorna o DataFrame
-        df = pd.read_excel(buffer) 
+        # Lê o arquivo Excel diretamente da URL
+        # O pandas vai baixar e ler o arquivo automaticamente
+        df = pd.read_excel(download_url)
         return df
         
-        # --- FIM DA CORREÇÃO DO BUG ---
-        
     except Exception as e:
-        # Se der erro, mostra uma mensagem clara
-        st.error(f"Erro ao conectar ou ler o arquivo do SharePoint: {e}")
-        st.error("Por favor, verifique se os 5 valores no Streamlit Secrets estão corretos (URL, Site, Caminho, Usuário e Senha). Se o erro persistir, o caminho do arquivo pode estar incorreto.")
+        # Se der erro, avisa sobre a permissão de compartilhamento
+        st.error(f"Erro ao conectar ou ler o arquivo do Google Drive: {e}")
+        st.error("Verifique se o arquivo no Google Drive está com o compartilhamento 'Qualquer pessoa com o link pode ver'.")
         return None
 
 def buscar_status(df, nome_digitado):
     """Função de back-end para buscar o status do candidato."""
+    # Esta função continua EXATAMENTE igual
     if df is None:
         return None
         
@@ -81,7 +66,8 @@ def buscar_status(df, nome_digitado):
 st.set_page_config(page_title="Status do Processo", layout="centered")
 st.title("Consulta de Status do Candidato")
 
-df_candidatos = carregar_dados_sharepoint()
+# Chama a nova função de carregar dados
+df_candidatos = carregar_dados_google()
 
 if df_candidatos is not None:
     nome_candidato = st.text_input("Digite o nome do Candidato:")
