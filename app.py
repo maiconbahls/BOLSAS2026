@@ -29,18 +29,22 @@ def carregar_dados_sharepoint():
         # 2. Autentica no SharePoint
         ctx = ClientContext(site_url).with_credentials(UserCredential(user, password))
         
+        # --- INÍCIO DA CORREÇÃO DO BUG ---
+        
         # 3. Cria um "arquivo em memória" (buffer) para receber os dados
-        buffer = io.BytesIO() # <--- MUDANÇA (criamos o buffer)
+        buffer = io.BytesIO() 
         
         # 4. Baixa o arquivo do SharePoint e salva DENTRO do buffer
-        ctx.web.get_file_by_server_relative_url(file_url).download(buffer).execute_query() # <--- MUDANÇA (passamos o buffer)
+        ctx.web.get_file_by_server_relative_url(file_url).download(buffer).execute_query()
         
         # 5. "Rebobina" o buffer para o início para que o pandas possa lê-lo
-        buffer.seek(0) # <--- MUDANÇA (necessário para a leitura)
+        buffer.seek(0)
         
         # 6. Carrega os bytes do buffer no pandas e retorna o DataFrame
-        df = pd.read_excel(buffer) # <--- MUDANÇA (lemos direto do buffer)
+        df = pd.read_excel(buffer) 
         return df
+        
+        # --- FIM DA CORREÇÃO DO BUG ---
         
     except Exception as e:
         # Se der erro, mostra uma mensagem clara
